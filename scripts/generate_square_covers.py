@@ -65,6 +65,10 @@ LIBRETRO_BASE = (
 # Only GBA_Square/ uses these regional alternatives; GBA/ remains untouched.
 # The True flag permits tiny ratio normalization for one naturally near-square original.
 SQUARE_ORIGINALS = {
+    "侠盗猎车手 - 前进[Beq & LCPD](Beta) (v20160720)[简](JP)(256Mb).png":
+        ("https://images.launchbox-app.com/52218a81-8b54-47d7-8702-3c36c52db179.jpg", False),
+    "拿破仑(12.24最终版)[Advance-002](简)(JP)(72Mb).png":
+        ("https://images.launchbox-app.com/d1b3c796-9232-43fb-af81-60197d69efb8.jpg", True),
     "公主同盟[狼狼小酷+流星落月](v20100811+NO.56修复)(简)(JP)(256Mb).png":
         ("Yggdra Union - We'll Never Fight Alone (USA).png", False),
     "哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb).png":
@@ -144,6 +148,14 @@ NDS_COMMUNITY_PAGES = {
         "https://gamesdb.launchbox-app.com/games/images/56342-the-legend-of-zelda-four-swords-anniversary-edition"
 }
 
+# Some original-looking square box fronts are hosted by LaunchBox rather than Libretro.
+SQUARE_ORIGINAL_PAGES = {
+    "侠盗猎车手 - 前进[Beq & LCPD](Beta) (v20160720)[简](JP)(256Mb).png":
+        "https://gamesdb.launchbox-app.com/games/details/3580-grand-theft-auto",
+    "拿破仑(12.24最终版)[Advance-002](简)(JP)(72Mb).png":
+        "https://gamesdb.launchbox-app.com/games/images/30528-napoleon-laigle-de-guerre",
+}
+
 
 def load_community_square(platform, stem):
     """Download and normalize a known square community-made cover to 512x512."""
@@ -173,7 +185,7 @@ def load_square_original(filename):
     if not entry:
         return None
     source_name, near_square = entry
-    url = LIBRETRO_BASE + quote(source_name, safe="")
+    url = source_name if source_name.startswith(("https://", "http://")) else LIBRETRO_BASE + quote(source_name, safe="")
     try:
         request = Request(url, headers={"User-Agent": "rom-cover-square-generator"})
         with urlopen(request, timeout=30) as response:
@@ -429,9 +441,20 @@ def write_source_catalogs():
             classification = "Original"
             square_path = f"GBA_Square/Original/{path.stem}.png"
             square_name = override[0] if override else source_name
-            square_url = LIBRETRO_BASE + quote(square_name, safe="") if square_name else original_url
-            source_page = "https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts"
-            note += " 方形版为对应游戏的原版方图或近方图，未裁切画面。"
+            square_url = (
+                square_name if square_name and square_name.startswith(("https://", "http://"))
+                else LIBRETRO_BASE + quote(square_name, safe="") if square_name
+                else original_url
+            )
+            source_page = SQUARE_ORIGINAL_PAGES.get(
+                path.name,
+                "https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts",
+            )
+            if square_name and square_name.startswith(("https://", "http://")):
+                source_label = "LaunchBox Box - Front 原版发行盒绘"
+            else:
+                source_label = "Libretro Named Boxarts 原版方/近方图"
+            note += f" 方形版为对应游戏的原版方/近方图（{source_label}），未裁切画面。"
         elif (DEST_COMMUNITY / (path.stem + ".png")).exists() and community:
             classification = "Community"
             square_path = f"GBA_Square/Community/{path.stem}.png"
