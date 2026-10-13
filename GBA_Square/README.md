@@ -6,7 +6,7 @@
 
 - ✅ 原版方图，未裁切：使用对应游戏的原版 1:1 封面，仅统一输出尺寸。
 - ✅ 原版近方图，未裁切：原图近似 1:1，只轻微统一比例，没有裁切画面。
-- ✂️ 从原图裁切：没有找到合适的方形原版封面，从 GBA/ 原图中选择方形区域。
+- ✂️ 从原图裁切：没有找到合适的方形原版封面，使用 SmartCrop.py 从 GBA/ 原图中选择方形区域。
 
 **统计：9 张使用原版方图/近方图（未裁切）；16 张由原图裁切。**
 
@@ -41,4 +41,4 @@
 - **阿滋漫画大王Advance[PGCG](简)(JP)(64Mb).png** — 从 GBA/阿滋漫画大王Advance[PGCG](简)(JP)(64Mb).png 裁切成正方形
 - **魔卡少女樱 小樱牌的迷你游戏[卧看微尘](v1.0)(简)(64Mb).png** — 从 GBA/魔卡少女樱 小樱牌的迷你游戏[卧看微尘](v1.0)(简)(64Mb).png 裁切成正方形
 
-来源库：[Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。少数未裁切方图使用同一游戏的其他地区原版封面；地区可能和本地汉化 ROM 不同。原始比例图片始终保留在 GBA/。
+原版封面来源库：[Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。需要裁切的封面使用开源 [SmartCrop.py](https://github.com/smartcrop/smartcrop.py) 算法选择画面区域；该算法使用细节、边缘、颜色饱和度、肤色线索和构图启发式，不是完美的人物识别，结果仍可能需要人工检查。少数未裁切方图使用同一游戏的其他地区原版封面；原始比例图片始终保留在 GBA/。
