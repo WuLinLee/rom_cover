@@ -428,7 +428,7 @@ def write_source_catalogs():
         "封面美术版权属于各自权利人。仓库只整理封面，不包含任何 ROM 或汉化补丁。",
         "",
     ]
-    (SOURCES_DIR / "README.md").write_text("\\n".join(source_readme), encoding="utf-8")
+    (SOURCES_DIR / "README.md").write_text("\n".join(source_readme), encoding="utf-8")
 
 def main():
     if not SOURCE.is_dir():
@@ -496,7 +496,7 @@ def main():
         "所有来源网址统一见 [Sources/cover_sources.csv](../Sources/cover_sources.csv)；来源说明见 [Sources/README.md](../Sources/README.md)。裁切算法：[SmartCrop.py](https://github.com/smartcrop/smartcrop.py)。",
         "",
     ])
-    (DEST / "README.md").write_text("\\n".join(note), encoding="utf-8")
+    (DEST / "README.md").write_text("\n".join(note), encoding="utf-8")
 
     manifest = [
         "# 原版方图未裁切名单",
@@ -511,7 +511,7 @@ def main():
         f"**合计：{len(no_crop_entries)} 张。** 其余 {len(cropped_entries)} 张位于 `GBA_Square/Cropped/`。",
         "",
     ])
-    (DEST / "原版方图未裁切名单.md").write_text("\\n".join(manifest), encoding="utf-8")
+    (DEST / "原版方图未裁切名单.md").write_text("\n".join(manifest), encoding="utf-8")
 
     print(f"Done: {made}/{len(files)} GBA square covers; {len(no_crop_entries)} original square/near-square, {len(cropped_entries)} cropped.")
     print("Downloading original-proportion NDS cover art...")
