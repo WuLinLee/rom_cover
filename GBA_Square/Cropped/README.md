@@ -6,7 +6,6 @@
 - 侦探神宫寺三郎 - 白影的少女[CGP](简)(JP)(65.56Mb).png
 - 哈利波特 - 消失的密室[施珂昱](简)(JP)(64Mb).png
 - 妹妹公主 - RePure[PGCG](繁)(JP)(64Mb).png
-- 拿破仑(12.24最终版)[Advance-002](简)(JP)(72Mb).png
 - 纯情房东俏房客Advance - 祝福之钟声[CGP&PGCG](简)(JP)(70.01Mb).png
 - 蜘蛛侠 - 纽约之战[Advance-005](简)(JP)(130.44Mb).png
 - 逆转裁判2[CGP](简)(JP)(77.39Mb).png
