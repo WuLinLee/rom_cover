@@ -5,8 +5,10 @@ on:
     branches: [main]
     paths:
       - "GBA/**"
+      - "GBA_Square/**"
       - "NDS/**"
       - "NDS_Square/**"
+      - "Sources/**"
       - "scripts/generate_square_covers.py"
       - ".github/workflows/generate-square-covers.yml"
       - "README.md"
@@ -32,12 +34,12 @@ jobs:
         run: python scripts/generate_square_covers.py
       - name: Commit square images
         run: |
-          if [ -z "$(git status --porcelain -- GBA_Square NDS NDS_Square)" ]; then
+          if [ -z "$(git status --porcelain -- GBA_Square NDS NDS_Square Sources)" ]; then
             echo "Square cover set is already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add GBA_Square NDS NDS_Square
-          git commit -m "Add generated GBA and NDS covers"
+          git add GBA_Square NDS NDS_Square Sources
+          git commit -m "Rebuild categorized GBA and NDS cover sets"
           git push

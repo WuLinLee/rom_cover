@@ -5,6 +5,7 @@ Known square original artwork is preferred. Remaining covers use SmartCrop.py,
 an open-source content-aware crop scorer. Every output is a 512x512 PNG.
 """
 from io import BytesIO
+import csv
 from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -16,10 +17,15 @@ from PIL import Image, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "GBA"
 DEST = ROOT / "GBA_Square"
+DEST_ORIGINAL = DEST / "Original"
+DEST_CROPPED = DEST / "Cropped"
 SIZE = 512
+SOURCES_DIR = ROOT / "Sources"
 
 NDS_SOURCE = ROOT / "NDS"
 NDS_DEST = ROOT / "NDS_Square"
+NDS_DEST_ORIGINAL = NDS_DEST / "Original"
+NDS_DEST_CROPPED = NDS_DEST / "Cropped"
 LIBRETRO_NDS_BASE = (
     "https://raw.githubusercontent.com/libretro-thumbnails/"
     "Nintendo_-_Nintendo_DS/master/Named_Boxarts/"
@@ -77,6 +83,36 @@ SQUARE_ORIGINALS = {
         ("Riviera - The Promised Land (USA).png", False),
 }
 
+
+# Best-matching source entries in Libretro's GBA Named_Boxarts library.
+# The entries are source art candidates; local ROM/cover filenames stay unchanged.
+GBA_SOURCE_MAP = {
+    "阿滋漫画大王Advance[PGCG](简)(JP)(64Mb)": "Azumanga Daiou Advance (Japan).png",
+    "纯情房东俏房客Advance - 祝福之钟声[CGP&PGCG](简)(JP)(70.01Mb)": "Love Hina Advance - Shukufuku no Kane wa Naru Kana (Japan).png",
+    "公主同盟[狼狼小酷+流星落月](v20100811+NO.56修复)(简)(JP)(256Mb)": "Yggdra Union (Japan).png",
+    "哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb)": "Harry Potter to Azkaban no Shuujin (Japan).png",
+    "哈利波特 - 魔法石[shikeyu](v0.1)(简)(64Mb)": "Harry Potter to Kenja no Ishi (Japan).png",
+    "哈利波特 - 消失的密室[施珂昱](简)(JP)(64Mb)": "Harry Potter to Himitsu no Heya (Japan).png",
+    "海绵宝宝 亚特兰蒂斯[3爻3](简)(45Mb)": "SpongeBob's Atlantis SquarePantis (USA).png",
+    "节奏天国[漫游](简)(JP)(128Mb)": "Rhythm Tengoku (Japan).png",
+    "妹妹公主 - RePure[PGCG](繁)(JP)(64Mb)": "Sister Princess - RePure (Japan).png",
+    "魔卡少女樱 小樱牌的迷你游戏[卧看微尘](v1.0)(简)(64Mb)": "Cardcaptor Sakura - Sakura Card de Mini Game (Japan).png",
+    "拿破仑(12.24最终版)[Advance-002](简)(JP)(72Mb)": "Napoleon (Japan).png",
+    "逆转裁判[Jpgmfan&逆转Ace](简)(JP)(66.41Mb)": "Gyakuten Saiban (Japan).png",
+    "逆转裁判2[CGP](简)(JP)(77.39Mb)": "Gyakuten Saiban 2 (Japan).png",
+    "逆转裁判3[逆转Ace](简)(JP)(69.64Mb)": "Gyakuten Saiban 3 (Japan).png",
+    "人型电脑天使心GBA - 只属于我的人[PGCG](简)(JP)(64Mb)": "Chobits for Game Boy Advance - Atashi Dake no Hito (Japan).png",
+    "人鱼恋曲 - Pichi Pichi Pitch[千岛&叶子](简)(JP)(136.33Mb)": "Mermaid Melody - Pichi Pichi Pitch (Japan).png",
+    "塞尔达传说 - 过去的林克&四支剑[漫游](简)(US)(64Mb)": "Legend of Zelda, The - A Link to the Past _ Four Swords (USA).png",
+    "塞尔达传说 - 缩小帽[天使汉化组](日汉最终版v2005SP4)(简)(JP)(128Mb)": "Legend of Zelda, The - The Minish Cap (USA).png",
+    "侠盗猎车手 - 前进[Beq & LCPD](Beta) (v20160720)[简](JP)(256Mb)": "Grand Theft Auto Advance (USA).png",
+    "星之卡比 - 镜之大迷宫[CGP](简)(JP)(128Mb)": "Kirby _ The Amazing Mirror (USA).png",
+    "星之卡比 - 梦之泉[伤雪&Sody](简)(JP)(64Mb)": "Kirby - Nightmare in Dream Land (USA).png",
+    "约束之地 - 利维艾拉[PromisedLand](v1.05)[简](JP)(256Mb)": "Riviera - The Promised Land (USA).png",
+    "侦探神宫寺三郎 - 白影的少女[CGP](简)(JP)(65.56Mb)": "Tantei Jinguuji Saburou - Shiroi Kage no Shoujo (Japan).png",
+    "侦探学园Q - 挑战究极诡计![CGP](简)(JP)(128Mb)": "Tantei Gakuen Q - Kyuukyoku Trick ni Idome! (Japan).png",
+    "蜘蛛侠 - 纽约之战[Advance-005](简)(JP)(130.44Mb)": "Spider-Man - Battle for New York (Europe) (En,Fr,De,Es,It).png",
+}
 
 def load_square_original(filename):
     entry = SQUARE_ORIGINALS.get(filename.name)
@@ -217,6 +253,14 @@ def generate_nds_square_covers():
         return 0, 0
 
     NDS_DEST.mkdir(parents=True, exist_ok=True)
+    NDS_DEST_ORIGINAL.mkdir(parents=True, exist_ok=True)
+    NDS_DEST_CROPPED.mkdir(parents=True, exist_ok=True)
+    # Move the old flat-layout set into Original/ and Cropped/ by rebuilding it.
+    for stale in NDS_DEST.glob("*.png"):
+        stale.unlink()
+    for folder in (NDS_DEST_ORIGINAL, NDS_DEST_CROPPED):
+        for stale in folder.glob("*.png"):
+            stale.unlink()
     uncropped = []
     cropped = []
     made = 0
@@ -234,14 +278,17 @@ def generate_nds_square_covers():
                     ).resize((SIZE, SIZE), Image.Resampling.LANCZOS)
                 else:
                     output = crop_square(original.copy())
-            output.save(NDS_DEST / (path.stem + ".png"), format="PNG", optimize=True)
             source_name, note = NDS_SOURCE_MAP.get(path.stem, ("", ""))
             if keep_full_image and note:
+                destination_folder = NDS_DEST_ORIGINAL
                 uncropped.append((path.name, original_size, source_name, note, "community", was_exact_square))
             elif keep_full_image:
+                destination_folder = NDS_DEST_ORIGINAL
                 uncropped.append((path.name, original_size, source_name, note, "original", was_exact_square))
             else:
+                destination_folder = NDS_DEST_CROPPED
                 cropped.append((path.name, original_size, source_name, note))
+            output.save(destination_folder / (path.stem + ".png"), format="PNG", optimize=True)
             made += 1
             print(f"Created NDS_Square/{path.stem}.png")
         except Exception as exc:
@@ -250,24 +297,26 @@ def generate_nds_square_covers():
     lines = [
         "# NDS 方形封面来源说明",
         "",
-        "所有方形封面统一输出为 512 × 512 PNG，文件名与 ROM 对应。NDS/ 内的原始比例封面不会被覆盖。",
+        "所有方形封面统一输出为 512 × 512 PNG，文件名与 ROM 对应。原始比例封面保存在 NDS/，不会被覆盖。",
         "",
-        "规则：优先保留原图本身就是正方形的封面；其他图片使用开源 SmartCrop.py 选择内容较重要的方形区域。自动裁切不是完美的人物识别，仍可能需要人工检查。",
+        "本目录分为两个子文件夹：Original/ 存放画面未裁切的原图方图/近方图（特殊替代图会单独注明）；Cropped/ 存放从原比例封面中选择方形区域的版本。来源网址集中记录在 Sources/cover_sources.csv。",
         "",
-        f"**统计：{sum(1 for item in uncropped if item[5])} 张原图本身为正方形；{sum(1 for item in uncropped if not item[5])} 张为近方形（均保留完整画面并轻微统一尺寸）；{len(cropped)} 张从原版比例封面裁切。**",
+        "自动裁切使用开源 SmartCrop.py，根据画面细节和构图线索选择窗口，并不保证每张人物构图都完美，建议重点检查人物脸部和边缘文字。",
         "",
-        "## 原图方图 / 近方图：保留完整画面",
+        f"**统计：{sum(1 for item in uncropped if item[5])} 张原图本身为正方形；{sum(1 for item in uncropped if not item[5])} 张为近方形（保留完整画面并轻微统一尺寸）；{len(cropped)} 张从原版比例封面裁切。**",
+        "",
+        "## Original/：原图未裁切",
         "",
     ]
     for filename, original_size, source_name, note, kind, was_exact_square in uncropped:
         shape_label = "正方形" if was_exact_square else "近方形，轻微统一比例"
         if kind == "community":
-            lines.append(f"- **{filename}** — {original_size}；保留{shape_label}社区替代封面。{note}")
+            lines.append(f"- `Original/{filename}` — {original_size}；保留{shape_label}社区替代封面。{note}")
         else:
-            lines.append(f"- **{filename}** — {original_size}；原图为{shape_label}，输出 512 × 512。来源：{source_name}")
-    lines.extend(["", "## 从原版比例封面裁切", ""])
+            lines.append(f"- `Original/{filename}` — {original_size}；原图为{shape_label}，输出 512 × 512。来源：{source_name}")
+    lines.extend(["", "## Cropped/：内容感知裁切", ""])
     for filename, original_size, source_name, note in cropped:
-        lines.append(f"- **{filename}** — 原图 {original_size}；从对应原版比例封面裁切。来源：{source_name}")
+        lines.append(f"- `Cropped/{filename}` — 原图 {original_size}；从对应原版比例封面裁切。来源：{source_name}")
     lines.extend([
         "",
         "算法来源：[SmartCrop.py](https://github.com/smartcrop/smartcrop.py)。画面自动裁切可能舍弃边缘文字、标志或人物的一部分；如有单张构图不理想，建议针对该图手动调整。",
@@ -277,6 +326,109 @@ def generate_nds_square_covers():
 
     return made, len(image_files)
 
+
+
+def local_cover_url(folder, filename):
+    return "https://raw.githubusercontent.com/WuLinLee/rom_cover/main/" + folder + "/" + quote(filename, safe="")
+
+
+def write_source_catalogs():
+    """Keep a root-level, machine-readable directory of per-cover source URLs."""
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+    header = [
+        "平台", "原比例封面文件", "仓库原图路径", "方形封面路径", "方形类型",
+        "原比例封面来源文件名", "原比例封面来源网址",
+        "方形封面来源文件名", "方形封面来源网址", "备注",
+    ]
+    rows = []
+
+    # GBA cover sources; where the precise upstream title is known, link to it.
+    for path in sorted(p for p in SOURCE.iterdir() if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}):
+        source_name = GBA_SOURCE_MAP.get(path.stem, "")
+        if source_name:
+            original_source_url = LIBRETRO_BASE + quote(source_name, safe="")
+            note = "匹配 Libretro 对应游戏盒绘；地区封面可能与 ROM 不同。"
+        else:
+            original_source_url = "https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts"
+            note = "已收录原图保存在 GBA/；上游单张文件名未核实，请通过来源库检索。"
+
+        override = SQUARE_ORIGINALS.get(path.name)
+        if override:
+            square_source_name = override[0]
+            square_source_url = LIBRETRO_BASE + quote(square_source_name, safe="")
+            note += " 方形版采用同一游戏的原版方图/近方图；如为其他地区版本，以此处方形来源为准。"
+        else:
+            square_source_name = source_name or path.name
+            square_source_url = original_source_url
+            note += " 方形版从仓库中的原比例封面裁切。"
+
+        if (DEST_ORIGINAL / (path.stem + ".png")).exists():
+            classification = "Original（原图未裁切）"
+            square_path = f"GBA_Square/Original/{path.stem}.png"
+        else:
+            classification = "Cropped（裁切）"
+            square_path = f"GBA_Square/Cropped/{path.stem}.png"
+
+        rows.append([
+            "GBA", path.name, f"GBA/{path.name}", square_path, classification,
+            source_name or "当前仓库原图；上游条目需复核", original_source_url,
+            square_source_name, square_source_url, note,
+        ])
+
+    # NDS cover sources; one DSiWare item uses a clearly identified community substitute.
+    for path in sorted(p for p in NDS_SOURCE.iterdir() if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}):
+        source_name, note = NDS_SOURCE_MAP.get(path.stem, ("", ""))
+        source_url = nds_source_url(source_name) if source_name else "https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS/tree/master/Named_Boxarts"
+        if (NDS_DEST_ORIGINAL / (path.stem + ".png")).exists():
+            classification = "Original（未裁切画面）"
+            square_path = f"NDS_Square/Original/{path.stem}.png"
+        else:
+            classification = "Cropped（裁切）"
+            square_path = f"NDS_Square/Cropped/{path.stem}.png"
+        if not note:
+            note = "Libretro Named Boxarts 对应游戏封面；部分为其他地区发行版本。" if not source_name.startswith(("http://", "https://")) else "使用独立替代封面；请查看说明。"
+        rows.append([
+            "NDS", path.name, f"NDS/{path.name}", square_path, classification,
+            source_name or "来源需核实", source_url,
+            source_name or "来源需核实", source_url, note,
+        ])
+
+    csv_files = [
+        ("cover_sources.csv", rows),
+        ("gba_sources.csv", [row for row in rows if row[0] == "GBA"]),
+        ("nds_sources.csv", [row for row in rows if row[0] == "NDS"]),
+    ]
+    for filename, selected_rows in csv_files:
+        with (SOURCES_DIR / filename).open("w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerows(selected_rows)
+
+    source_readme = [
+        "# 封面来源网址索引",
+        "",
+        "本目录集中保存每张封面的来源网址、仓库内原图路径、方形版本路径和处理类型。",
+        "",
+        "## 文件说明",
+        "",
+        "- [cover_sources.csv](cover_sources.csv)：GBA 与 NDS 全部封面合并清单。",
+        "- [gba_sources.csv](gba_sources.csv)：25 款 GBA 封面逐张来源。",
+        "- [nds_sources.csv](nds_sources.csv)：18 款 NDS 封面逐张来源。",
+        "",
+        "CSV 内的「原比例封面来源网址」与「方形封面来源网址」均可直接打开。若来源文件名为 Libretro 的英文标题，表示采用同一游戏的对应地区盒绘；地区版本可能与本地 ROM 不同。",
+        "",
+        "GBA 原图在仓库的 [GBA/](../GBA/) 中。方形版若有合适的原版方图，则优先使用该原版图；否则从仓库中的原比例封面裁切。NDS 原版盒绘主要来自 Libretro Named Boxarts；《塞尔达传说四支剑 25 周年纪念版》没有零售实体 DS 盒绘，使用社区制作的替代封面，来源及说明已在表格中标注。",
+        "",
+        "## 上游来源库",
+        "",
+        "- [Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)",
+        "- [Libretro Nintendo DS Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS/tree/master/Named_Boxarts)",
+        "- [SmartCrop.py 内容感知裁切算法](https://github.com/smartcrop/smartcrop.py)",
+        "",
+        "封面美术版权属于各自权利人。仓库只整理封面，不包含任何 ROM 或汉化补丁。",
+        "",
+    ]
+    (SOURCES_DIR / "README.md").write_text("\\n".join(source_readme), encoding="utf-8")
 
 def main():
     if not SOURCE.is_dir():
@@ -289,6 +441,14 @@ def main():
         return 2
 
     DEST.mkdir(parents=True, exist_ok=True)
+    DEST_ORIGINAL.mkdir(parents=True, exist_ok=True)
+    DEST_CROPPED.mkdir(parents=True, exist_ok=True)
+    # Clean the former flat layout and stale categorized outputs before rebuilding.
+    for stale in DEST.glob("*.png"):
+        stale.unlink()
+    for folder in (DEST_ORIGINAL, DEST_CROPPED):
+        for stale in folder.glob("*.png"):
+            stale.unlink()
     no_crop_entries = []
     cropped_entries = []
     made = 0
@@ -299,73 +459,66 @@ def main():
             if override:
                 cover, source_name, near_square = override
                 output = cover.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+                destination_folder = DEST_ORIGINAL
                 if near_square:
-                    label = "✅ 原版近方图，未裁切（原图 256×257，仅轻微统一比例）"
+                    label = "原版近方图，未裁切（原图 256×257，仅轻微统一比例）"
                 else:
-                    label = "✅ 原版方图，未裁切（只统一输出尺寸）"
+                    label = "原版方图，未裁切（只统一输出尺寸）"
                 no_crop_entries.append((path.name, source_name, label, near_square))
             else:
                 with Image.open(path) as original:
                     output = crop_square(original.copy())
+                destination_folder = DEST_CROPPED
                 cropped_entries.append((path.name, f"GBA/{path.name}"))
-            output.save(DEST / (path.stem + ".png"), format="PNG", optimize=True)
+            output.save(destination_folder / (path.stem + ".png"), format="PNG", optimize=True)
             made += 1
-            print(f"Created {path.stem}.png")
+            print(f"Created {destination_folder.relative_to(ROOT)}/{path.stem}.png")
         except Exception as exc:
             print(f"ERROR: {path.name}: {exc}", file=sys.stderr)
 
     note = [
-        "# 方形封面来源说明",
+        "# GBA 方形封面目录说明",
         "",
-        "本目录图片均为 512 × 512 PNG，文件名与 ROM 对应。",
+        "本目录分为 Original/ 和 Cropped/ 两类。Original/ 优先保存已找到的同一游戏原版正方形盒绘，未裁切画面；Cropped/ 则在找不到合适原版方图时，从 GBA/ 原图选择主体区域裁切。",
         "",
-        "## 标记说明",
+        f"**统计：{len(no_crop_entries)} 张原版方图/近方图未裁切；{len(cropped_entries)} 张从原图裁切。**",
         "",
-        "- ✅ 原版方图，未裁切：使用对应游戏的原版 1:1 封面，仅统一输出尺寸。",
-        "- ✅ 原版近方图，未裁切：原图近似 1:1，只轻微统一比例，没有裁切画面。",
-        "- ✂️ 从原图裁切：没有找到合适的方形原版封面，使用 SmartCrop.py 从 GBA/ 原图中选择方形区域。",
-        "",
-        f"**统计：{len(no_crop_entries)} 张使用原版方图/近方图（未裁切）；{len(cropped_entries)} 张由原图裁切。**",
-        "",
-        "## ✅ 原版方图 / 近方图：未裁切",
+        "## Original/：原图未裁切",
         "",
     ]
     for rom_name, source_name, label, near_square in no_crop_entries:
-        note.append(f"- **{rom_name}** — {label}。源图：{source_name}")
-    note.extend(["", "## ✂️ 从原始封面裁切", ""])
+        note.append(f"- `Original/{rom_name}` — {label}。方形来源：{source_name}")
+    note.extend(["", "## Cropped/：内容感知裁切", ""])
     for rom_name, source_name in cropped_entries:
-        note.append(f"- **{rom_name}** — 从 {source_name} 裁切成正方形")
+        note.append(f"- `Cropped/{rom_name}` — 从原比例封面 `{source_name}` 裁切为 512 × 512。")
     note.extend([
         "",
-        "原版封面来源库：[Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。需要裁切的封面使用开源 [SmartCrop.py](https://github.com/smartcrop/smartcrop.py) 算法选择画面区域；该算法使用细节、边缘、颜色饱和度、肤色线索和构图启发式，不是完美的人物识别，结果仍可能需要人工检查。少数未裁切方图使用同一游戏的其他地区原版封面；原始比例图片始终保留在 GBA/。",
+        "所有来源网址统一见 [Sources/cover_sources.csv](../Sources/cover_sources.csv)；来源说明见 [Sources/README.md](../Sources/README.md)。裁切算法：[SmartCrop.py](https://github.com/smartcrop/smartcrop.py)。",
         "",
     ])
-    (DEST / "README.md").write_text("\n".join(note), encoding="utf-8")
+    (DEST / "README.md").write_text("\\n".join(note), encoding="utf-8")
 
     manifest = [
-        "# ✅ 原版方图未裁切名单",
+        "# 原版方图未裁切名单",
         "",
-        "下列方形封面直接使用对应游戏的原版方形封面，没有裁切画面。输出统一调整到 512 × 512，仅作尺寸归一化。",
+        "本名单对应 GBA_Square/Original/ 下的封面。它们使用同一游戏的原版方形盒绘，只统一输出到 512 × 512；地区版本可能和本地 ROM 不一致。",
         "",
     ]
     for rom_name, source_name, label, near_square in no_crop_entries:
-        if near_square:
-            manifest.append(f"- ✅ **{rom_name}** — 原版近方图，未裁切，仅轻微统一比例。源图：{source_name}")
-        else:
-            manifest.append(f"- ✅ **{rom_name}** — 原版方图，未裁切。源图：{source_name}")
+        manifest.append(f"- `Original/{rom_name}` — {label}。源图：{source_name}")
     manifest.extend([
         "",
-        f"**合计：{len(no_crop_entries)} 张。** 其他 {len(cropped_entries)} 张来自原始比例封面的方形裁切，完整分类请查看 [README.md](README.md)。",
+        f"**合计：{len(no_crop_entries)} 张。** 其余 {len(cropped_entries)} 张位于 `GBA_Square/Cropped/`。",
         "",
     ])
-    (DEST / "原版方图未裁切名单.md").write_text("\n".join(manifest), encoding="utf-8")
+    (DEST / "原版方图未裁切名单.md").write_text("\\n".join(manifest), encoding="utf-8")
 
     print(f"Done: {made}/{len(files)} GBA square covers; {len(no_crop_entries)} original square/near-square, {len(cropped_entries)} cropped.")
-
     print("Downloading original-proportion NDS cover art...")
     nds_sources_ok = sync_nds_originals()
     nds_made, nds_total = generate_nds_square_covers()
     print(f"Done: {nds_made}/{nds_total} NDS square covers.")
+    write_source_catalogs()
 
     return 0 if made == len(files) and nds_sources_ok and nds_made == nds_total and nds_total == len(NDS_SOURCE_MAP) else 1
 
