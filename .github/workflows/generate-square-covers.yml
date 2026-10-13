@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install image tools
-        run: python -m pip install --disable-pip-version-check Pillow numpy
+        run: python -m pip install --disable-pip-version-check Pillow smartcrop
       - name: Create square covers
         run: python scripts/generate_square_covers.py
       - name: Commit square images

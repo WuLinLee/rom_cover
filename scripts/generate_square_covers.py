@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Build separate square covers from GBA/ without altering the originals.
 
-Known square original artwork is preferred where the Libretro collection has a
-genuine 1:1 image for the same game. Remaining covers use a centre-biased crop.
-Every output is a 512x512 PNG named after the matching ROM file.
+Known square original artwork is preferred. Remaining covers use SmartCrop.py,
+an open-source content-aware crop scorer. Every output is a 512x512 PNG.
 """
 from io import BytesIO
 from pathlib import Path
@@ -11,7 +10,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 import sys
 
-import numpy as np
+import smartcrop
 from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,44 +73,8 @@ def load_square_original(filename):
         return None
 
 
-def saliency_map(image):
-    """Approximate visual focus from edges and color intensity."""
-    rgb = np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    gray = 0.299 * r + 0.587 * g + 0.114 * b
-    gx = np.zeros_like(gray)
-    gy = np.zeros_like(gray)
-    gx[:, 1:-1] = np.abs(gray[:, 2:] - gray[:, :-2]) * 0.5
-    gy[1:-1, :] = np.abs(gray[2:, :] - gray[:-2, :]) * 0.5
-    edge = gx + gy
-    saturation = np.maximum.reduce([r, g, b]) - np.minimum.reduce([r, g, b])
-    colour_span = np.max(rgb, axis=2) - np.min(rgb, axis=2)
-    score = 0.58 * edge + 0.27 * saturation + 0.15 * colour_span
-    scale = float(np.percentile(score, 98))
-    if scale > 1e-8:
-        score = np.clip(score / scale, 0.0, 1.0)
-    return score
-
-
-def best_offset(score, axis_len, side, axis):
-    """Choose a high-detail square crop without straying far from center."""
-    excess = axis_len - side
-    if excess <= 0:
-        return 0
-    center_left = excess / 2.0
-    max_shift = min(excess // 2, max(1, int(side * 0.16)))
-    lo = max(0, int(round(center_left - max_shift)))
-    hi = min(excess, int(round(center_left + max_shift)))
-    projection = score.sum(axis=0 if axis == 1 else 1)
-    prefix = np.concatenate(([0.0], np.cumsum(projection, dtype=np.float64)))
-    offsets = np.arange(lo, hi + 1)
-    sums = prefix[offsets + side] - prefix[offsets]
-    norm = max(float(sums.max() - sums.min()), 1e-8)
-    penalty = 0.10 * norm * ((offsets - center_left) / max(max_shift, 1)) ** 2
-    return int(offsets[np.argmax(sums - penalty)])
-
-
 def crop_square(image):
+    """Use SmartCrop.py to pick a content-aware 1:1 window from a non-square cover."""
     image = ImageOps.exif_transpose(image)
     if image.mode not in ("RGB", "RGBA"):
         image = image.convert("RGBA" if "transparency" in image.info else "RGB")
@@ -119,29 +82,32 @@ def crop_square(image):
     if width == height:
         return image.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
-    scale = min(1.0, 512.0 / max(width, height))
-    analysis = image.convert("RGB")
-    if scale < 1:
-        analysis = analysis.resize(
-            (max(1, round(width * scale)), max(1, round(height * scale))),
-            Image.Resampling.LANCZOS,
-        )
-    score = saliency_map(analysis)
-    aw, ah = analysis.size
+    side = min(width, height)
+    try:
+        # SmartCrop.py scores candidate windows using visual detail, edges,
+        # saturation, skin-colour likelihood, and composition heuristics.
+        analysis = image.convert("RGB")
+        result = smartcrop.SmartCrop().crop(analysis, side, side)
+        best = result.get("top_crop") or {}
+        x = max(0, min(int(best.get("x", (width - side) // 2)), width - 1))
+        y = max(0, min(int(best.get("y", (height - side) // 2)), height - 1))
+        crop_width = max(1, min(int(best.get("width", side)), width - x))
+        crop_height = max(1, min(int(best.get("height", side)), height - y))
 
-    if width > height:
-        side = height
-        left_a = best_offset(score, aw, min(ah, aw), axis=1)
-        left = min(max(0, round(left_a / scale)), width - side)
-        top = 0
-    else:
-        side = width
-        top_a = best_offset(score, ah, min(aw, ah), axis=0)
-        top = min(max(0, round(top_a / scale)), height - side)
-        left = 0
-
-    cropped = image.crop((left, top, left + side, top + side))
-    return cropped.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+        # SmartCrop may choose a slightly smaller or rounded crop. Convert its
+        # selected window to a true square around the chosen composition.
+        square_side = min(crop_width, crop_height)
+        x += max(0, (crop_width - square_side) // 2)
+        y += max(0, (crop_height - square_side) // 2)
+        cropped = image.crop((x, y, x + square_side, y + square_side))
+        return cropped.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    except Exception as exc:
+        # Keep batch processing resilient; mark fallback clearly in CI logs.
+        print(f"WARNING: SmartCrop failed for one image; using centre crop: {exc}", file=sys.stderr)
+        x = (width - side) // 2
+        y = (height - side) // 2
+        cropped = image.crop((x, y, x + side, y + side))
+        return cropped.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
 
 def main():
@@ -189,7 +155,7 @@ def main():
         "",
         "- ✅ 原版方图，未裁切：使用对应游戏的原版 1:1 封面，仅统一输出尺寸。",
         "- ✅ 原版近方图，未裁切：原图近似 1:1，只轻微统一比例，没有裁切画面。",
-        "- ✂️ 从原图裁切：没有找到合适的方形原版封面，从 GBA/ 原图中选择方形区域。",
+        "- ✂️ 从原图裁切：没有找到合适的方形原版封面，使用 SmartCrop.py 从 GBA/ 原图中选择方形区域。",
         "",
         f"**统计：{len(no_crop_entries)} 张使用原版方图/近方图（未裁切）；{len(cropped_entries)} 张由原图裁切。**",
         "",
@@ -203,7 +169,7 @@ def main():
         note.append(f"- **{rom_name}** — 从 {source_name} 裁切成正方形")
     note.extend([
         "",
-        "来源库：[Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。少数未裁切方图使用同一游戏的其他地区原版封面；地区可能和本地汉化 ROM 不同。原始比例图片始终保留在 GBA/。",
+        "原版封面来源库：[Libretro Nintendo - Game Boy Advance Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。需要裁切的封面使用开源 [SmartCrop.py](https://github.com/smartcrop/smartcrop.py) 算法选择画面区域；该算法使用细节、边缘、颜色饱和度、肤色线索和构图启发式，不是完美的人物识别，结果仍可能需要人工检查。少数未裁切方图使用同一游戏的其他地区原版封面；原始比例图片始终保留在 GBA/。",
         "",
     ])
     (DEST / "README.md").write_text("\n".join(note), encoding="utf-8")
