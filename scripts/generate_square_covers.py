@@ -224,15 +224,22 @@ def generate_nds_square_covers():
     for path in image_files:
         try:
             with Image.open(path) as original:
-                was_square = original.width == original.height
+                was_exact_square = original.width == original.height
+                ratio_difference = abs(original.width / original.height - 1.0)
+                keep_full_image = ratio_difference <= 0.035
                 original_size = f"{original.width}×{original.height}"
-                output = crop_square(original.copy())
+                if keep_full_image:
+                    output = ImageOps.exif_transpose(original).convert(
+                        "RGBA" if "A" in original.getbands() else "RGB"
+                    ).resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+                else:
+                    output = crop_square(original.copy())
             output.save(NDS_DEST / (path.stem + ".png"), format="PNG", optimize=True)
             source_name, note = NDS_SOURCE_MAP.get(path.stem, ("", ""))
-            if was_square and note:
-                uncropped.append((path.name, original_size, source_name, note, "community"))
-            elif was_square:
-                uncropped.append((path.name, original_size, source_name, note, "original"))
+            if keep_full_image and note:
+                uncropped.append((path.name, original_size, source_name, note, "community", was_exact_square))
+            elif keep_full_image:
+                uncropped.append((path.name, original_size, source_name, note, "original", was_exact_square))
             else:
                 cropped.append((path.name, original_size, source_name, note))
             made += 1
@@ -247,16 +254,17 @@ def generate_nds_square_covers():
         "",
         "规则：优先保留原图本身就是正方形的封面；其他图片使用开源 SmartCrop.py 选择内容较重要的方形区域。自动裁切不是完美的人物识别，仍可能需要人工检查。",
         "",
-        f"**统计：{len(uncropped)} 张原图本身为正方形（未裁切画面）；{len(cropped)} 张从原版比例封面裁切。**",
+        f"**统计：{sum(1 for item in uncropped if item[5])} 张原图本身为正方形；{sum(1 for item in uncropped if not item[5])} 张为近方形（均保留完整画面并轻微统一尺寸）；{len(cropped)} 张从原版比例封面裁切。**",
         "",
-        "## 原图本身为正方形：未裁切画面",
+        "## 原图方图 / 近方图：保留完整画面",
         "",
     ]
-    for filename, original_size, source_name, note, kind in uncropped:
+    for filename, original_size, source_name, note, kind, was_exact_square in uncropped:
+        shape_label = "正方形" if was_exact_square else "近方形，轻微统一比例"
         if kind == "community":
-            lines.append(f"- **{filename}** — {original_size}；保留方形社区替代封面。{note}")
+            lines.append(f"- **{filename}** — {original_size}；保留{shape_label}社区替代封面。{note}")
         else:
-            lines.append(f"- **{filename}** — {original_size}；原图为方形，仅统一输出到 512 × 512。来源：{source_name}")
+            lines.append(f"- **{filename}** — {original_size}；原图为{shape_label}，输出 512 × 512。来源：{source_name}")
     lines.extend(["", "## 从原版比例封面裁切", ""])
     for filename, original_size, source_name, note in cropped:
         lines.append(f"- **{filename}** — 原图 {original_size}；从对应原版比例封面裁切。来源：{source_name}")
