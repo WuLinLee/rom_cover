@@ -9,7 +9,7 @@
 | [GBA/](GBA/) | GBA 原版比例封面 | 保留原图比例，不裁切 |
 | [GBA_Square/](GBA_Square/) | GBA 正方形封面 | 512 × 512 PNG；优先使用同一游戏的原版方图，没有合适方图时再裁切 |
 | [NDS/](NDS/) | NDS 原版比例封面 | 依照 ROM 名称保存对应游戏的原版盒绘；没有实体盒绘的下载版会标明替代图来源 |
-| [NDS_Square/](NDS_Square/) | NDS 正方形封面 | 512 × 512 PNG；原图本身为正方形时不裁画面，否则使用内容感知裁切 |
+| [NDS_Square/](NDS_Square/) | NDS 正方形封面 | 512 × 512 PNG；原图为正方形或接近正方形时尽量保留完整画面并轻微统一尺寸，其余使用内容感知裁切 |
 | [GBA_Square/README.md](GBA_Square/README.md) | GBA 方形图来源清单 | 列出原版方图与自动裁切图 |
 | [GBA_Square/原版方图未裁切名单.md](GBA_Square/原版方图未裁切名单.md) | GBA 原版方图名单 | 标记未裁切的封面 |
 | [NDS/README.md](NDS/README.md) | NDS 原版封面来源 | 记录来源文件和下载地址 |
