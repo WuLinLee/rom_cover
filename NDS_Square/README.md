@@ -4,10 +4,11 @@
 
 规则：优先保留原图本身就是正方形的封面；其他图片使用开源 SmartCrop.py 选择内容较重要的方形区域。自动裁切不是完美的人物识别，仍可能需要人工检查。
 
-**统计：0 张原图本身为正方形（未裁切画面）；18 张从原版比例封面裁切。**
+**统计：0 张原图本身为正方形；1 张为近方形（均保留完整画面并轻微统一尺寸）；17 张从原版比例封面裁切。**
 
-## 原图本身为正方形：未裁切画面
+## 原图方图 / 近方图：保留完整画面
 
+- **塞尔达传说四支剑 25周年纪念版(简)(Monado汉化组)(108Mb).png** — 662×640；保留近方形，轻微统一比例社区替代封面。未找到原版零售盒绘；使用社区制作的封面图，不属于官方原版实体盒绘。
 
 ## 从原版比例封面裁切
 
@@ -18,7 +19,6 @@
 - **北欧女神 负罪者 V2(JP)(ACG汉化组)(1024Mb).png** — 原图 512×456；从对应原版比例封面裁切。来源：Valkyrie Profile - Toga o Seou Mono (Japan).png
 - **塞尔达传说 大地的汽笛(简)1.1(US)(FCU汉化组和兔友汉化组)(1024Mb).png** — 原图 512×458；从对应原版比例封面裁切。来源：Legend of Zelda, The - Spirit Tracks (USA) (En,Fr,Es).png
 - **塞尔达传说 幻影沙漏 修正版(简)(JP)(巴士汉化组)(512Mb).png** — 原图 512×462；从对应原版比例封面裁切。来源：Zelda no Densetsu - Mugen no Sunadokei (Japan).png
-- **塞尔达传说四支剑 25周年纪念版(简)(Monado汉化组)(108Mb).png** — 原图 662×640；从对应原版比例封面裁切。来源：https://images.launchbox-app.com/074d3405-6de6-48a5-8d51-b03596ae607b.png
 - **大剑 银眼的魔女(JP)(CG汉化组)(1024Mb).png** — 原图 512×457；从对应原版比例封面裁切。来源：Claymore - Gingan no Majo (Japan).png
 - **守护甜心！兴高采烈！甜心旋律(JP)(兔友汉化组)(1024Mb).png** — 原图 500×450；从对应原版比例封面裁切。来源：Shugo Chara! - Nori Nori! CharanaRhythm (Japan).png
 - **恋爱布丁 恋爱大冒险！(JP)(SOMA汉化组)(256Mb).png** — 原图 512×460；从对应原版比例封面裁切。来源：Koisuru Purin! - Koi wa Daibouken! Dr. Kanmi no Yabou! (Japan).png
