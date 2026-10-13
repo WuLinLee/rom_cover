@@ -17,6 +17,37 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "GBA"
 DEST = ROOT / "GBA_Square"
 SIZE = 512
+
+NDS_SOURCE = ROOT / "NDS"
+NDS_DEST = ROOT / "NDS_Square"
+LIBRETRO_NDS_BASE = (
+    "https://raw.githubusercontent.com/libretro-thumbnails/"
+    "Nintendo_-_Nintendo_DS/master/Named_Boxarts/"
+)
+
+# Keyed by the ROM filename stem (without .nds). Prefer matching original box art.
+# The final entry is a square community-made cover: Four Swords Anniversary was a
+# DSiWare release and does not have a genuine retail DS box cover.
+NDS_SOURCE_MAP = {
+    "爱丽丝梦游仙境(US)(兔友汉化组)(512Mb)": ("Alice in Wonderland (USA) (En,Fr,Es) (NDSi Enhanced).png", ""),
+    "北欧女神 负罪者 V2(JP)(ACG汉化组)(1024Mb)": ("Valkyrie Profile - Toga o Seou Mono (Japan).png", ""),
+    "刺客信条2 英文字幕+中文配音最终版(fciq配音小组)(512Mb)": ("Assassin's Creed II - Discovery (USA) (En,Fr,Es) (NDSi Enhanced).png", ""),
+    "大剑 银眼的魔女(JP)(CG汉化组)(1024Mb)": ("Claymore - Gingan no Majo (Japan).png", ""),
+    "盗贼皇女(JP)(ACG汉化组)(512Mb)": ("Steal Princess - Touzoku Koujo (Japan) [b].png", ""),
+    "鬼太郎 妖怪大激战(JP)(CG汉化组)(256Mb)": ("Gegege no Kitarou - Youkai Daigekisen (Japan).png", ""),
+    "欢迎回来！小机器人！开心富裕大扫除！ 1.1(JP)(兔友汉化组)(512Mb)": ("Okaeri! Chibi-Robo! - Happy Rich Oosouji! (Japan).png", ""),
+    "集合！卡比 v20200227(R4TT补丁版)(简)(JP)(那个汉化组)(512Mb)": ("Atsumete! Kirby (Japan).png", ""),
+    "恋爱布丁 恋爱大冒险！(JP)(SOMA汉化组)(256Mb)": ("Koisuru Purin! - Koi wa Daibouken! Dr. Kanmi no Yabou! (Japan).png", ""),
+    "绿野仙踪奇遇记 大字体完全汉化v1.1(JP)(OREZERO)(1024Mb)": ("Riz-Zoawd (Japan).png", ""),
+    "美少女梦工场4DS 特别版 (繁)全文本汉化版 1.1(JP)(joyful)(1024Mb)": ("Princess Maker 4 - Special Edition (Japan).png", ""),
+    "塞尔达传说 大地的汽笛(简)1.1(US)(FCU汉化组和兔友汉化组)(1024Mb)": ("Legend of Zelda, The - Spirit Tracks (USA) (En,Fr,Es).png", ""),
+    "塞尔达传说 幻影沙漏 修正版(简)(JP)(巴士汉化组)(512Mb)": ("Zelda no Densetsu - Mugen no Sunadokei (Japan).png", ""),
+    "塞尔达传说四支剑 25周年纪念版(简)(Monado汉化组)(108Mb)": ("https://images.launchbox-app.com/074d3405-6de6-48a5-8d51-b03596ae607b.png", "未找到原版零售盒绘；使用社区制作的封面图，不属于官方原版实体盒绘。"),
+    "守护甜心！兴高采烈！甜心旋律(JP)(兔友汉化组)(1024Mb)": ("Shugo Chara! - Nori Nori! CharanaRhythm (Japan).png", ""),
+    "万能先生的泡妞生活 夜晚把妹实战篇 6.18修正版(JP)(星组)(256Mb)": ("Dekiru Otoko no Mote Life - Yoru no Mote Jissen Hen (Japan).png", ""),
+    "为你而生 完整汉化版(EU)(兔友汉化组)(1024Mb)": ("Project Rub (Europe) (En,Ja,Fr,De,Es,It).png", ""),
+    "侠盗车手 血战唐人街 1.8(EU)(远离汉化组)(1024Mb)": ("Grand Theft Auto - Chinatown Wars (Europe) (En,Fr,De,Es,It).png", ""),
+}
 LIBRETRO_BASE = (
     "https://raw.githubusercontent.com/libretro-thumbnails/"
     "Nintendo_-_Game_Boy_Advance/master/Named_Boxarts/"
@@ -110,6 +141,135 @@ def crop_square(image):
         return cropped.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
 
+
+def nds_source_url(source_name):
+    """Return the public artwork URL for a Libretro filename or a direct URL."""
+    if source_name.startswith(("https://", "http://")):
+        return source_name
+    return LIBRETRO_NDS_BASE + quote(source_name, safe="")
+
+
+def sync_nds_originals():
+    """Download source cover art into NDS/ while keeping ROM files out of the repo."""
+    NDS_SOURCE.mkdir(parents=True, exist_ok=True)
+    failures = []
+    source_records = []
+
+    for rom_stem, (source_name, note) in NDS_SOURCE_MAP.items():
+        target = NDS_SOURCE / (rom_stem + ".png")
+        url = nds_source_url(source_name)
+
+        # Keep existing saved originals. Missing files are fetched from the source.
+        if not target.exists() or target.stat().st_size == 0:
+            last_error = None
+            for attempt in range(3):
+                try:
+                    request = Request(url, headers={"User-Agent": "rom-cover-square-generator"})
+                    with urlopen(request, timeout=45) as response:
+                        data = response.read()
+                    with Image.open(BytesIO(data)) as image:
+                        image.verify()
+                    target.write_bytes(data)
+                    last_error = None
+                    break
+                except Exception as exc:
+                    last_error = exc
+            if last_error is not None:
+                print(f"ERROR: Could not download NDS cover for {rom_stem}: {last_error}", file=sys.stderr)
+                failures.append(rom_stem)
+                continue
+
+        source_label = source_name if not source_name.startswith(("https://", "http://")) else source_name
+        source_records.append((rom_stem, source_label, note, url))
+
+    lines = [
+        "# NDS 原版比例封面来源说明",
+        "",
+        "此目录保存和 ROM 文件名对应的 NDS 封面 PNG，不包含 ROM 文件。优先使用 Libretro 的原版游戏盒绘；地区版可能和汉化 ROM 的地区标记不同。",
+        "",
+        "## 封面来源",
+        "",
+    ]
+    for rom_stem, source_name, note, url in source_records:
+        status = f" — {note}" if note else " — Libretro Named Boxarts 原版游戏盒绘"
+        lines.append(f"- **{rom_stem}.png**：{source_name}{status}")
+        lines.append(f"  来源：{url}")
+    if failures:
+        lines.extend(["", "## 下载失败，需要重试", ""])
+        lines.extend(f"- {name}.png" for name in failures)
+    lines.extend([
+        "",
+        "原始封面版权属于各自游戏权利人；本仓库只为个人模拟器封面整理使用。四支剑 25 周年纪念版为 DSiWare 下载版，没有原版实体 DS 盒绘，因此采用社区制作的替代封面并已标明。",
+        "",
+    ])
+    (NDS_SOURCE / "README.md").write_text("\n".join(lines), encoding="utf-8")
+    return not failures
+
+
+def generate_nds_square_covers():
+    """Generate NDS_Square/; do not alter the source images in NDS/."""
+    image_files = sorted(
+        p for p in NDS_SOURCE.iterdir()
+        if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+    )
+    if not image_files:
+        print(f"No NDS cover images found in {NDS_SOURCE}", file=sys.stderr)
+        return 0, 0
+
+    NDS_DEST.mkdir(parents=True, exist_ok=True)
+    uncropped = []
+    cropped = []
+    made = 0
+
+    for path in image_files:
+        try:
+            with Image.open(path) as original:
+                was_square = original.width == original.height
+                original_size = f"{original.width}×{original.height}"
+                output = crop_square(original.copy())
+            output.save(NDS_DEST / (path.stem + ".png"), format="PNG", optimize=True)
+            source_name, note = NDS_SOURCE_MAP.get(path.stem, ("", ""))
+            if was_square and note:
+                uncropped.append((path.name, original_size, source_name, note, "community"))
+            elif was_square:
+                uncropped.append((path.name, original_size, source_name, note, "original"))
+            else:
+                cropped.append((path.name, original_size, source_name, note))
+            made += 1
+            print(f"Created NDS_Square/{path.stem}.png")
+        except Exception as exc:
+            print(f"ERROR: NDS cover {path.name}: {exc}", file=sys.stderr)
+
+    lines = [
+        "# NDS 方形封面来源说明",
+        "",
+        "所有方形封面统一输出为 512 × 512 PNG，文件名与 ROM 对应。NDS/ 内的原始比例封面不会被覆盖。",
+        "",
+        "规则：优先保留原图本身就是正方形的封面；其他图片使用开源 SmartCrop.py 选择内容较重要的方形区域。自动裁切不是完美的人物识别，仍可能需要人工检查。",
+        "",
+        f"**统计：{len(uncropped)} 张原图本身为正方形（未裁切画面）；{len(cropped)} 张从原版比例封面裁切。**",
+        "",
+        "## 原图本身为正方形：未裁切画面",
+        "",
+    ]
+    for filename, original_size, source_name, note, kind in uncropped:
+        if kind == "community":
+            lines.append(f"- **{filename}** — {original_size}；保留方形社区替代封面。{note}")
+        else:
+            lines.append(f"- **{filename}** — {original_size}；原图为方形，仅统一输出到 512 × 512。来源：{source_name}")
+    lines.extend(["", "## 从原版比例封面裁切", ""])
+    for filename, original_size, source_name, note in cropped:
+        lines.append(f"- **{filename}** — 原图 {original_size}；从对应原版比例封面裁切。来源：{source_name}")
+    lines.extend([
+        "",
+        "算法来源：[SmartCrop.py](https://github.com/smartcrop/smartcrop.py)。画面自动裁切可能舍弃边缘文字、标志或人物的一部分；如有单张构图不理想，建议针对该图手动调整。",
+        "",
+    ])
+    (NDS_DEST / "README.md").write_text("\n".join(lines), encoding="utf-8")
+
+    return made, len(image_files)
+
+
 def main():
     if not SOURCE.is_dir():
         print(f"Missing source folder: {SOURCE}", file=sys.stderr)
@@ -192,8 +352,14 @@ def main():
     ])
     (DEST / "原版方图未裁切名单.md").write_text("\n".join(manifest), encoding="utf-8")
 
-    print(f"Done: {made}/{len(files)} square covers; {len(no_crop_entries)} original square/near-square, {len(cropped_entries)} cropped.")
-    return 0 if made == len(files) else 1
+    print(f"Done: {made}/{len(files)} GBA square covers; {len(no_crop_entries)} original square/near-square, {len(cropped_entries)} cropped.")
+
+    print("Downloading original-proportion NDS cover art...")
+    nds_sources_ok = sync_nds_originals()
+    nds_made, nds_total = generate_nds_square_covers()
+    print(f"Done: {nds_made}/{nds_total} NDS square covers.")
+
+    return 0 if made == len(files) and nds_sources_ok and nds_made == nds_total and nds_total == len(NDS_SOURCE_MAP) else 1
 
 if __name__ == "__main__":
     raise SystemExit(main())

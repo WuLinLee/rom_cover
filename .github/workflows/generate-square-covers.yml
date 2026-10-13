@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "GBA/**"
+      - "NDS/**"
+      - "NDS_Square/**"
       - "scripts/generate_square_covers.py"
       - ".github/workflows/generate-square-covers.yml"
       - "README.md"
