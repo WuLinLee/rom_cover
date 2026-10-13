@@ -30,7 +30,7 @@ jobs:
         run: python scripts/generate_square_covers.py
       - name: Commit square images
         run: |
-          if git diff --quiet -- GBA_Square; then
+          if [ -z "$(git status --porcelain -- GBA_Square)" ]; then
             echo "Square cover set is already up to date."
             exit 0
           fi
