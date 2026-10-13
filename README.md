@@ -7,26 +7,32 @@
 | 目录 | 内容 |
 |---|---|
 | [GBA/](GBA/) | 25 张 GBA 原比例封面，原图保留 |
-| [GBA_Square/](GBA_Square/) | GBA 方形封面总目录，里面分为 Original/ 和 Cropped/ |
-| [GBA_Square/Original/](GBA_Square/Original/) | 优先放找到的原版正方形盒绘；画面未裁切 |
-| [GBA_Square/Cropped/](GBA_Square/Cropped/) | 没有合适原版方图时，从原图选择主体区域裁切 |
+| [GBA_Square/](GBA_Square/) | GBA 方形封面，按来源分为三个子文件夹 |
+| [GBA_Square/Original/](GBA_Square/Original/) | 找到的原版正方形/近方形盒绘，尽量保留完整画面 |
+| [GBA_Square/Community/](GBA_Square/Community/) | 网上的玩家/社区专门制作方形封面，标明图片直链与来源页面 |
+| [GBA_Square/Cropped/](GBA_Square/Cropped/) | 没有合适原版方图或社区方图时，从原比例封面裁切 |
 | [NDS/](NDS/) | 18 张 NDS 原比例封面，原图保留 |
-| [NDS_Square/](NDS_Square/) | NDS 方形封面总目录，里面分为 Original/ 和 Cropped/ |
-| [NDS_Square/Original/](NDS_Square/Original/) | 原图为正方形或接近正方形时保留完整画面；特殊替代图会标注 |
-| [NDS_Square/Cropped/](NDS_Square/Cropped/) | 从原比例封面中裁出主体区域 |
-| [Sources/](Sources/) | **所有封面来源网址、来源文件名、处理类别和方形图路径的集中索引** |
-| [Sources/cover_sources.csv](Sources/cover_sources.csv) | GBA + NDS 全部封面的来源清单，可用表格软件打开 |
-| [Sources/gba_sources.csv](Sources/gba_sources.csv) | GBA 每张封面的单独来源网址 |
-| [Sources/nds_sources.csv](Sources/nds_sources.csv) | NDS 每张封面的单独来源网址 |
-| [scripts/generate_square_covers.py](scripts/generate_square_covers.py) | 方形封面生成脚本 |
-| [.github/workflows/generate-square-covers.yml](.github/workflows/generate-square-covers.yml) | 自动生成流程 |
+| [NDS_Square/](NDS_Square/) | NDS 方形封面，按来源分为三个子文件夹 |
+| [NDS_Square/Original/](NDS_Square/Original/) | 原版正方形/近方形封面；目前暂无确认的原版方图 |
+| [NDS_Square/Community/](NDS_Square/Community/) | 社区制作或投稿的方形封面；会注明非官方状态 |
+| [NDS_Square/Cropped/](NDS_Square/Cropped/) | 原版方图与社区方图都找不到时的裁切版本 |
+| [Sources/](Sources/) | **来源网址集中目录** |
+| [Sources/cover_sources.csv](Sources/cover_sources.csv) | 43 款游戏的来源总表，含原图、方形类别、图片直链和来源网页 |
+| [Sources/gba_sources.csv](Sources/gba_sources.csv) | GBA 每款封面的逐张来源 |
+| [Sources/nds_sources.csv](Sources/nds_sources.csv) | NDS 每款封面的逐张来源 |
+| [Sources/README.md](Sources/README.md) | 来源标注规则、社区图说明和上游来源库 |
+| [scripts/generate_square_covers.py](scripts/generate_square_covers.py) | 自动找图下载与方形封面生成脚本 |
+| [.github/workflows/generate-square-covers.yml](.github/workflows/generate-square-covers.yml) | GitHub Actions 自动生成流程 |
 
-## 封面分类和来源说明
+## 三种方形封面怎么选
 
-- **Original（原图未裁切）**：方形版优先使用找到的同一游戏原版 1:1 盒绘；近方形图会保留完整画面并轻微统一尺寸。此分类表示没有裁掉画面，不代表每一张都是官方实体盒绘；社区替代图会在来源表中注明。
-- **Cropped（裁切版）**：找不到合适的原版方图时，才使用 SmartCrop.py 内容感知裁切，尽量保住人物和主要视觉元素。算法不能保证正确识别人脸，部分图片仍可能需要人工微调。
-- **原图不会被方形处理覆盖**：GBA 原图保存在 GBA/，NDS 原图保存在 NDS/，两套方形版分别存于各自的 Square 子目录中。
-- **来源网址集中存放**：根目录的 Sources/ 中有总 CSV 和按平台分开的 CSV。文件同时记录上游网址、仓库原图地址、方形输出地址及处理类型。地区版本可能和汉化 ROM 所标记的地区不同。
+优先级是 **Original → Community → Cropped**。
+
+- **Original（原版）**：找到同一游戏的原版方图时优先使用。地区版本可能与本地汉化 ROM 的地区标记不同，但来源会写清楚。
+- **Community（社区制作）**：找不到合适的原版方图时，优先寻找玩家投稿/非官方专门制作的正方形封面。此类作品会标明网站、来源页面和图片直链，不冒充官方美术。
+- **Cropped（裁切）**：原版方图和合适的社区方图都找不到时，才从原比例封面中裁切主要内容。自动算法不能保证每次都完美保留人物脸部或标题，仍可能需要人工微调。
+
+这三类是按图片来源与处理方式区分的。每款游戏默认只归入当前能找到的最佳类别，避免同一张封面在三个目录中重复；社区作者后来上传更合适的方图时，可以把该游戏从 Cropped 调整到 Community。所有方形输出统一为 512 × 512 PNG，GBA/ 与 NDS/ 的原比例源图不被覆盖。
 
 ## GBA 游戏清单（25 款）
 
@@ -79,7 +85,7 @@
 
 ## 来源与版权
 
-GBA 原版封面主要整理自 [Libretro GBA Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts)。NDS 封面来源主要为 [Libretro Nintendo DS Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS/tree/master/Named_Boxarts)。少数游戏用同一作品的其他地区版本；需要替代图时会单独注明。游戏封面、美术和角色版权属于各自权利人。
+原比例盒绘主要整理自 [Libretro GBA Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance/tree/master/Named_Boxarts) 和 [Libretro Nintendo DS Named Boxarts](https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS/tree/master/Named_Boxarts)。社区方形封面目前从 [LaunchBox Games Database](https://gamesdb.launchbox-app.com/) 的 Fanart - Box - Front 条目选取；具体作品页和图片直链都记录在 [Sources/cover_sources.csv](Sources/cover_sources.csv)。其中《塞尔达传说四支剑 25 周年纪念版》没有实体 DS 版零售盒绘，使用社区替代封面并单独标明。所有封面美术版权属于各自作者及游戏权利人。
 
 ## 重新生成
 
